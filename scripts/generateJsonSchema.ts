@@ -88,4 +88,42 @@ const jsonSchema = {
 // transform-like fields string-only in JSON Schema while runtime Zod still accepts functions.
 forceStringTransformSchemas(jsonSchema);
 
+// Zod refinements are not represented in JSON Schema. Reject configs that set both judge aliases.
+function disallowBothGraderProviderFields(node: unknown, seen = new WeakSet<object>()): void {
+  if (!node || typeof node !== 'object') {
+    return;
+  }
+  if (seen.has(node)) {
+    return;
+  }
+  seen.add(node);
+
+  if (Array.isArray(node)) {
+    for (const item of node) {
+      disallowBothGraderProviderFields(item, seen);
+    }
+    return;
+  }
+
+  const record = node as Record<string, unknown>;
+  const properties = record.properties;
+  if (
+    record.type === 'object' &&
+    properties &&
+    typeof properties === 'object' &&
+    !Array.isArray(properties) &&
+    'provider' in properties &&
+    'graderProvider' in properties &&
+    record.not === undefined
+  ) {
+    record.not = { required: ['provider', 'graderProvider'] };
+  }
+
+  for (const value of Object.values(record)) {
+    disallowBothGraderProviderFields(value, seen);
+  }
+}
+
+disallowBothGraderProviderFields(jsonSchema);
+
 console.log(JSON.stringify(jsonSchema, null, 2));

@@ -260,6 +260,24 @@ override the grader. There are several ways to do this, depending on your prefer
            provider: openai:gpt-6-sol
    ```
 
+`graderProvider` is an alias of that judge `provider`. These configurations are equivalent:
+
+```yaml
+defaultTest:
+  options:
+    graderProvider: openai:gpt-6-sol
+```
+
+```yaml
+tests:
+  - assert:
+      - type: llm-rubric
+        value: Is spoken like a pirate
+        graderProvider: openai:gpt-6-sol
+```
+
+`graderProvider` follows the same precedence as `provider`: the assertion, then `test.options`, then `defaultTest.options`. `--grader` overrides either field. Setting both `provider` and `graderProvider` on the same assertion or the same `options` object is a validation error.
+
 :::caution `defaultTest.provider` also sets the grader for output-based assertions
 
 `defaultTest.provider` is the field that pins the **target model** for every test in a suite.
@@ -325,7 +343,7 @@ tests:
             temperature: 0
 ```
 
-This works at every level where a grader can be set — per-assertion (`assertion.provider`), per-test (`test.options.provider`), and globally (`defaultTest.options.provider`).
+This works at every level where a grader can be set — per-assertion (`assertion.provider` or `assertion.graderProvider`), per-test (`test.options.provider` or `test.options.graderProvider`), and globally (`defaultTest.options.provider` or `defaultTest.options.graderProvider`).
 
 If you configure a full provider object globally, do not also add a shorthand
 `provider: openai:chat:...` to the assertion. Assertion-level providers take precedence, so the

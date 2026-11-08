@@ -4,20 +4,26 @@ import path from 'path';
 import Clone from 'rfdc';
 import cliState from '../cliState';
 import { importModule } from '../esm';
+import { selectGradingProvider } from '../types/graderProvider';
 import { type Assertion, type TestCase } from '../types/index';
 import { loadYaml } from '../util/yamlLoad';
 
 const clone = Clone();
 
 export function getFinalTest(test: TestCase, assertion: Assertion) {
-  // Deep copy
+  // graderProvider is an alias of provider. Both set on one object throws.
+  const assertionGrader = selectGradingProvider(assertion);
+  const testGrader = selectGradingProvider(test.options);
+
+  // Deep copy. Function-valued judges are restored after clone because rfdc drops functions.
   const ret = clone({
     ...test,
     ...(test.options &&
-      test.options.provider && {
+      (test.options.provider || test.options.graderProvider) && {
         options: {
           ...test.options,
           provider: undefined,
+          graderProvider: undefined,
         },
       }),
     ...(test.provider && {
@@ -46,7 +52,8 @@ export function getFinalTest(test: TestCase, assertion: Assertion) {
   if (test.provider) {
     ret.provider = test.provider;
   }
-  ret.options.provider = assertion.provider || test?.options?.provider;
+  ret.options.provider = assertionGrader || testGrader;
+  delete ret.options.graderProvider;
   ret.options.rubricPrompt = assertion.rubricPrompt || ret.options.rubricPrompt;
   return Object.freeze(ret);
 }

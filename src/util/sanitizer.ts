@@ -773,8 +773,17 @@ export function mapTestProviderRefs<T>(test: T, mapProvider: (provider: unknown)
     if ('provider' in record) {
       projected.provider = mapProvider(record.provider);
     }
-    if (options?.provider !== undefined) {
-      projected.options = { ...options, provider: mapProvider(options.provider) };
+    if ('graderProvider' in record) {
+      projected.graderProvider = mapProvider(record.graderProvider);
+    }
+    if (options?.provider !== undefined || options?.graderProvider !== undefined) {
+      projected.options = {
+        ...options,
+        ...(options.provider === undefined ? {} : { provider: mapProvider(options.provider) }),
+        ...(options.graderProvider === undefined
+          ? {}
+          : { graderProvider: mapProvider(options.graderProvider) }),
+      };
     }
     if (Array.isArray(record.assert)) {
       projected.assert = record.assert.map(project);

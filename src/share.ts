@@ -223,11 +223,19 @@ function stripTestPaths(test: TestCase): void {
   if (test.options?.provider) {
     test.options.provider = stripProviderPaths(test.options.provider);
   }
+  if (test.options?.graderProvider) {
+    test.options.graderProvider = stripProviderPaths(test.options.graderProvider);
+  }
   for (const assertion of test.assert ?? []) {
     if (assertion.type === 'assert-set') {
       stripTestPaths({ assert: assertion.assert });
-    } else if (assertion.provider) {
-      assertion.provider = stripProviderPaths(assertion.provider);
+    } else {
+      if (assertion.provider) {
+        assertion.provider = stripProviderPaths(assertion.provider);
+      }
+      if (assertion.graderProvider) {
+        assertion.graderProvider = stripProviderPaths(assertion.graderProvider);
+      }
     }
   }
 }

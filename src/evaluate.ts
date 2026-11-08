@@ -12,6 +12,7 @@ import { processPrompts } from './prompts/index';
 import { loadApiProviders, resolveProvider } from './providers/index';
 import { providerRegistry } from './providers/providerRegistry';
 import { createShareableUrl, isSharingEnabled } from './share';
+import { normalizeAssertionGrader, normalizeGradingProviderConfig } from './types/graderProvider';
 import { isApiProvider } from './types/providers';
 import { isTransformFunction } from './types/transform';
 import { maybeLoadFromExternalFile } from './util/file';
@@ -245,6 +246,16 @@ async function resolveNestedProviders(
 ): Promise<void> {
   if (typeof constructedTestSuite.defaultTest === 'object' && constructedTestSuite.defaultTest) {
     constructedTestSuite.defaultTest = cloneTestForResolve(constructedTestSuite.defaultTest);
+    if (constructedTestSuite.defaultTest.options) {
+      const options = normalizeGradingProviderConfig(constructedTestSuite.defaultTest.options);
+      if (options) {
+        constructedTestSuite.defaultTest.options = options;
+      }
+    }
+    if (constructedTestSuite.defaultTest.assert) {
+      constructedTestSuite.defaultTest.assert =
+        constructedTestSuite.defaultTest.assert.map(normalizeAssertionGrader);
+    }
 
     if (
       constructedTestSuite.defaultTest.provider &&
@@ -271,6 +282,15 @@ async function resolveNestedProviders(
   constructedTestSuite.tests = (constructedTestSuite.tests || []).map(cloneTestForResolve);
 
   for (const test of constructedTestSuite.tests) {
+    if (test.options) {
+      const options = normalizeGradingProviderConfig(test.options);
+      if (options) {
+        test.options = options;
+      }
+    }
+    if (test.assert) {
+      test.assert = test.assert.map(normalizeAssertionGrader);
+    }
     if (test.options?.provider && !isApiProvider(test.options.provider)) {
       test.options.provider = await resolveGradingProvider(test.options.provider, providerMap, {
         env: testSuiteConfig.env,

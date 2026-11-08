@@ -309,7 +309,7 @@ tests:
         threshold: 0.6
 ```
 
-To choose the judge for [model-graded assertions](/docs/configuration/expected-outputs/model-graded), set `defaultTest.options.provider`. Keep the models being tested in the top-level `providers` list:
+To choose the judge for [model-graded assertions](/docs/configuration/expected-outputs/model-graded), set `defaultTest.options.provider` or its alias `defaultTest.options.graderProvider`. Keep the models being tested in the top-level `providers` list:
 
 ```yaml
 defaultTest:

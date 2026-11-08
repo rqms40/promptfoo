@@ -17,6 +17,7 @@ import {
   sleepWithAbort,
   wrapProviderWithRateLimiting,
 } from '../../scheduler';
+import { gradingProviderText, selectGradingProvider } from '../../types/graderProvider';
 import {
   type ApiProvider,
   type Assertion,
@@ -226,12 +227,12 @@ class RedteamProviderManager {
       return undefined;
     }
 
-    return (
-      (cliState.config.defaultTest as any)?.provider ||
-      (cliState.config.defaultTest as any)?.options?.provider?.text ||
-      (cliState.config.defaultTest as any)?.options?.provider ||
-      undefined
-    );
+    const defaultTest = cliState.config.defaultTest;
+    const optionsProvider = selectGradingProvider(defaultTest?.options);
+    return (defaultTest?.provider ||
+      gradingProviderText(optionsProvider) ||
+      optionsProvider ||
+      undefined) as RedteamFileConfig['provider'] | undefined;
   }
 
   private resolveProviderCandidate({
@@ -436,15 +437,8 @@ class RedteamProviderManager {
       return this.wrapProvider(jsonOnly ? this.gradingJsonOnlyProvider : this.gradingProvider);
     }
 
-    // 3) Try defaultTest config chain (grading-first)
-    const cfg =
-      (typeof cliState.config?.defaultTest === 'object' &&
-        (cliState.config?.defaultTest as any)?.provider) ||
-      (typeof cliState.config?.defaultTest === 'object' &&
-        (cliState.config?.defaultTest as any)?.options?.provider?.text) ||
-      (typeof cliState.config?.defaultTest === 'object' &&
-        (cliState.config?.defaultTest as any)?.options?.provider) ||
-      undefined;
+    // 3) Try defaultTest config chain (grading-first). graderProvider aliases options.provider.
+    const cfg = this.getDefaultTestProvider();
 
     if (cfg) {
       const loaded = await loadRedteamProvider({ provider: cfg, jsonOnly, purpose: 'grading' });

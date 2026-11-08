@@ -774,6 +774,14 @@ const omitAssertionProviderCredentials = (
       ...(hasOwn(assertion, 'provider')
         ? { provider: omitConfiguredProviderCredentials(assertion.provider, templatePaths) }
         : {}),
+      ...(hasOwn(assertion, 'graderProvider')
+        ? {
+            graderProvider: omitConfiguredProviderCredentials(
+              assertion.graderProvider,
+              templatePaths,
+            ),
+          }
+        : {}),
       ...(hasOwn(assertion, 'config')
         ? { config: omitProviderCredentials(assertion.config, undefined, templatePaths) }
         : {}),

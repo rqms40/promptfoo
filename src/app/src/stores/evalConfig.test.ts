@@ -461,12 +461,22 @@ describe('evalConfig store', () => {
         defaultTest: {
           provider: provider('default-provider-secret'),
           options: { provider: provider('default-grader-secret') },
-          assert: [{ type: 'llm-rubric', value: 'correct', provider: provider('assert-secret') }],
+          assert: [
+            { type: 'llm-rubric', value: 'correct', provider: provider('assert-secret') },
+            {
+              type: 'llm-rubric',
+              value: 'polite',
+              graderProvider: provider('assert-grader-alias-secret'),
+            },
+          ],
         },
         tests: [
           {
             provider: provider('test-provider-secret'),
-            options: { provider: provider('test-grader-secret') },
+            options: {
+              provider: provider('test-grader-secret'),
+              graderProvider: provider('test-grader-alias-secret'),
+            },
             vars: { payload: { provider: { apiKey: 'ordinary-input-value' } } },
             assert: [{ type: 'equals', value: { provider: { apiKey: 'expected-output-value' } } }],
           },
@@ -502,10 +512,16 @@ describe('evalConfig store', () => {
       expect(persistedConfig.defaultTest.assert[0].provider.config).toEqual({
         endpoint: 'https://example.com',
       });
+      expect(persistedConfig.defaultTest.assert[1].graderProvider.config).toEqual({
+        endpoint: 'https://example.com',
+      });
       expect(persistedConfig.tests[0].provider.config).toEqual({
         endpoint: 'https://example.com',
       });
       expect(persistedConfig.tests[0].options.provider.config).toEqual({
+        endpoint: 'https://example.com',
+      });
+      expect(persistedConfig.tests[0].options.graderProvider.config).toEqual({
         endpoint: 'https://example.com',
       });
       expect(persistedConfig.tests[0].vars.payload).toEqual({

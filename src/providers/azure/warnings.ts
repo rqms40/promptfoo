@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import { MODEL_GRADED_ASSERTION_TYPES } from '../../assertions/index';
 import logger from '../../logger';
+import { selectGradingProvider } from '../../types/graderProvider';
 
 import type { TestCase, TestSuite } from '../../types/index';
 
@@ -21,18 +22,18 @@ export function maybeEmitAzureOpenAiWarning(testSuite: TestSuite, tests: TestCas
       p.constructor.name === 'OpenAiAssistantProvider',
   );
 
-  if (
-    hasAzure &&
-    !hasOpenAi &&
-    !(typeof testSuite.defaultTest === 'object' && testSuite.defaultTest?.options?.provider)
-  ) {
+  const defaultGrader =
+    typeof testSuite.defaultTest === 'object'
+      ? selectGradingProvider(testSuite.defaultTest?.options)
+      : undefined;
+  if (hasAzure && !hasOpenAi && !defaultGrader) {
     const modelGradedAsserts = tests.flatMap((t) =>
       (t.assert || []).filter(
         (a) =>
           a.type !== 'assert-set' &&
           MODEL_GRADED_ASSERTION_TYPES.has(a.type) &&
-          !a.provider &&
-          !t.options?.provider,
+          !selectGradingProvider(a) &&
+          !selectGradingProvider(t.options),
       ),
     );
     if (modelGradedAsserts.length > 0) {

@@ -826,6 +826,8 @@ async function doEvalWithEnv(
       testSuite.defaultTest = testSuite.defaultTest || {};
       testSuite.defaultTest.options = testSuite.defaultTest.options || {};
       testSuite.defaultTest.options.provider = cmdObj.grader;
+      // --grader replaces either config field. Leaving graderProvider set would conflict.
+      delete testSuite.defaultTest.options.graderProvider;
       // Also update cliState.config so redteam providers can access the grader
       if (cliState.config) {
         // Normalize string shorthand to object
@@ -835,6 +837,7 @@ async function doEvalWithEnv(
         cliState.config.defaultTest = cliState.config.defaultTest || {};
         cliState.config.defaultTest.options = cliState.config.defaultTest.options || {};
         cliState.config.defaultTest.options.provider = testSuite.defaultTest.options.provider;
+        delete cliState.config.defaultTest.options.graderProvider;
       }
     }
     if (!resumeEval && cmdObj.var) {

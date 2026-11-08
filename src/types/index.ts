@@ -18,6 +18,7 @@ import {
   hasValidConfigProviders,
   normalizeConfigProviderAlias,
 } from './configAliases';
+import { GRADER_PROVIDER_CONFLICT_MESSAGE, hasGraderProviderConflict } from './graderProvider';
 
 import type { ResultFailureReason } from './results';
 
@@ -171,32 +172,51 @@ export type VarMapping = Record<string, string>;
 // Exported for:
 // 1. Testing key overlap in merged schemas (see test/types/index.test.ts)
 // 2. External consumers who need to validate grading config independently
-export const GradingConfigSchema = z.object({
-  rubricPrompt: z
-    .union([
-      z.string(),
-      z.array(z.string()),
-      z.array(
-        z.object({
-          role: z.string(),
-          content: z.string(),
-        }),
-      ),
-    ])
-    .optional(),
-  provider: z
-    .union([z.string(), z.any(), z.record(z.string(), z.union([z.string(), z.any()])).optional()])
-    .optional(),
-  factuality: z
-    .object({
-      subset: z.number().optional(),
-      superset: z.number().optional(),
-      agree: z.number().optional(),
-      disagree: z.number().optional(),
-      differButFactual: z.number().optional(),
-    })
-    .optional(),
-});
+const GradingProviderSchema = z
+  .union([z.string(), z.any(), z.record(z.string(), z.union([z.string(), z.any()])).optional()])
+  .optional();
+
+function rejectConflictingGraderProvider(
+  value: { provider?: unknown; graderProvider?: unknown },
+  ctx: z.RefinementCtx,
+) {
+  if (hasGraderProviderConflict(value)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: GRADER_PROVIDER_CONFLICT_MESSAGE,
+      path: ['graderProvider'],
+    });
+  }
+}
+
+export const GradingConfigSchema = z
+  .object({
+    rubricPrompt: z
+      .union([
+        z.string(),
+        z.array(z.string()),
+        z.array(
+          z.object({
+            role: z.string(),
+            content: z.string(),
+          }),
+        ),
+      ])
+      .optional(),
+    provider: GradingProviderSchema,
+    // Alias of `provider` for the model that grades outputs. Do not set both.
+    graderProvider: GradingProviderSchema,
+    factuality: z
+      .object({
+        subset: z.number().optional(),
+        superset: z.number().optional(),
+        agree: z.number().optional(),
+        disagree: z.number().optional(),
+        differButFactual: z.number().optional(),
+      })
+      .optional(),
+  })
+  .superRefine(rejectConflictingGraderProvider);
 
 export type GradingConfig = z.infer<typeof GradingConfigSchema>;
 
@@ -788,41 +808,46 @@ export const AssertionSetSchema = z.object({
 export type AssertionSet = z.infer<typeof AssertionSetSchema>;
 
 // TODO(ian): maybe Assertion should support {type: config} to make the yaml cleaner
-export const AssertionSchema = z.object({
-  // Type of assertion
-  type: AssertionTypeSchema,
+export const AssertionSchema = z
+  .object({
+    // Type of assertion
+    type: AssertionTypeSchema,
 
-  // The expected value, if applicable
-  value: z.custom<AssertionValue>().optional(),
+    // The expected value, if applicable
+    value: z.custom<AssertionValue>().optional(),
 
-  // An external mapping of arbitrary strings to values that is passed
-  // to the assertion for custom asserts
-  config: z.record(z.string(), z.any()).optional(),
+    // An external mapping of arbitrary strings to values that is passed
+    // to the assertion for custom asserts
+    config: z.record(z.string(), z.any()).optional(),
 
-  // The threshold value, only applicable for similarity (cosine distance)
-  threshold: z.number().optional(),
+    // The threshold value, only applicable for similarity (cosine distance)
+    threshold: z.number().optional(),
 
-  // The weight of this assertion compared to other assertions in the test case. Defaults to 1.
-  weight: z.number().optional(),
+    // The weight of this assertion compared to other assertions in the test case. Defaults to 1.
+    weight: z.number().optional(),
 
-  // Some assertions (similarity, llm-rubric, agent-rubric) require a grading provider
-  provider: z.custom<GradingConfig['provider']>().optional(),
+    // Some assertions (similarity, llm-rubric, agent-rubric) require a grading provider
+    provider: z.custom<GradingConfig['provider']>().optional(),
 
-  // Override the grading rubric
-  rubricPrompt: z.custom<GradingConfig['rubricPrompt']>().optional(),
+    // Alias of `provider` for model-graded assertions. Do not set both.
+    graderProvider: z.custom<GradingConfig['provider']>().optional(),
 
-  // Tag this assertion result as a named metric
-  metric: z.string().optional(),
+    // Override the grading rubric
+    rubricPrompt: z.custom<GradingConfig['rubricPrompt']>().optional(),
 
-  // Process the output before running the assertion
-  transform: StringOrFunctionSchema.optional(),
+    // Tag this assertion result as a named metric
+    metric: z.string().optional(),
 
-  // Extract context from the output using a transform
-  contextTransform: StringOrFunctionSchema.optional(),
+    // Process the output before running the assertion
+    transform: StringOrFunctionSchema.optional(),
 
-  // Opt-in string normalization for equals/contains; true selects NFC.
-  normalizeUnicode: z.union([z.boolean(), z.enum(['NFC', 'NFD', 'NFKC', 'NFKD'])]).optional(),
-});
+    // Extract context from the output using a transform
+    contextTransform: StringOrFunctionSchema.optional(),
+
+    // Opt-in string normalization for equals/contains; true selects NFC.
+    normalizeUnicode: z.union([z.boolean(), z.enum(['NFC', 'NFD', 'NFKC', 'NFKD'])]).optional(),
+  })
+  .superRefine(rejectConflictingGraderProvider);
 
 export type Assertion = z.infer<typeof AssertionSchema>;
 
@@ -1000,6 +1025,7 @@ export const TestCaseSchema = z.object({
       repeat: z.number().int().positive().safe().optional(),
     })
     .catchall(z.any())
+    .superRefine(rejectConflictingGraderProvider)
     .optional(),
 
   // The required score for this test case.  If not provided, the test case is graded pass/fail.

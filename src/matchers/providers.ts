@@ -10,6 +10,7 @@ import {
   runProviderCallWithAbort,
 } from '../scheduler/providerCallExecutionContext';
 import { createProviderRateLimitOptions, isRateLimitWrapped } from '../scheduler/providerWrapper';
+import { gradingProviderText, selectGradingProvider } from '../types/graderProvider';
 
 import type {
   ApiProvider,
@@ -237,13 +238,15 @@ export async function getGradingProvider(
       );
     }
   } else {
-    // No provider specified - check defaultTest providers as fallback
+    // No provider specified - check defaultTest providers as fallback.
+    // options.graderProvider is an alias of options.provider.
     const defaultTest = cliState.config?.defaultTest;
     const defaultTestObj = typeof defaultTest === 'object' ? (defaultTest as TestCase) : null;
+    const configuredGrader = selectGradingProvider(defaultTestObj?.options);
     const fallbackProviders = [
       defaultTestObj?.provider || undefined,
-      defaultTestObj?.options?.provider?.text || undefined,
-      defaultTestObj?.options?.provider || undefined,
+      gradingProviderText(configuredGrader) || undefined,
+      configuredGrader || undefined,
     ];
 
     const cfg = fallbackProviders.find((candidateProvider) => {

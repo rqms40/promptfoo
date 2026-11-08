@@ -61,6 +61,11 @@ import { withGraderSpan, withTestCaseSpan, withTracedProviderCall } from './trac
 import { fetchTraceContext } from './tracing/traceContext';
 import { isCliEventSource } from './types/eventSource';
 import {
+  normalizeAssertionGrader,
+  normalizeGradingProviderConfig,
+  selectGradingProvider,
+} from './types/graderProvider';
+import {
   type Assertion,
   type AssertionOrSet,
   type AssertionType,
@@ -2936,9 +2941,9 @@ function mergeScenarioTest(
       ...test.vars,
     },
     options: {
-      ...(defaultTest?.options || {}),
-      ...data.options,
-      ...test.options,
+      ...(normalizeGradingProviderConfig(defaultTest?.options) || {}),
+      ...(normalizeGradingProviderConfig(data.options) || {}),
+      ...(normalizeGradingProviderConfig(test.options) || {}),
     },
     assert: [...(data.assert || []), ...(test.assert || [])],
     metadata: mergedMetadata,
@@ -3066,11 +3071,11 @@ async function prepareTestCaseForEval(
   testCase.assert = [
     ...(disableDefaultAsserts ? [] : defaultTest?.assert || []),
     ...(testCase.assert || []),
-  ];
+  ].map((assertion) => normalizeAssertionGrader(assertion));
   testCase.threshold = testCase.threshold ?? defaultTest?.threshold;
   testCase.options = {
-    ...(defaultTest?.options || {}),
-    ...testCase.options,
+    ...(normalizeGradingProviderConfig(defaultTest?.options) || {}),
+    ...(normalizeGradingProviderConfig(testCase.options) || {}),
   };
   testCase.metadata = {
     ...(defaultTest?.metadata || {}),
@@ -3649,7 +3654,9 @@ function persistComparisonProvider(provider: GradingConfig['provider']): Grading
 function getComparisonProviders(test: AtomicTestCase, currentResult = false) {
   const assertion = test.assert?.find((a): a is Assertion => a.type === 'select-best');
   return {
-    provider: snapshotComparisonProvider(assertion?.provider || test.options?.provider),
+    provider: snapshotComparisonProvider(
+      selectGradingProvider(assertion) || selectGradingProvider(test.options),
+    ),
     currentResult,
   };
 }
@@ -5172,7 +5179,7 @@ class Evaluator<TEvaluation extends EvaluationRecord, TResult extends Evaluation
       const compareAssertion = {
         ...assertion,
         provider: restoreComparisonProvider(
-          assertion.provider || savedTest.options?.provider,
+          selectGradingProvider(assertion) || selectGradingProvider(savedTest.options),
           providers?.provider,
           providers?.currentResult ?? false,
         ),
@@ -5203,7 +5210,9 @@ class Evaluator<TEvaluation extends EvaluationRecord, TResult extends Evaluation
       if (isGradingAbort(error, providerAbortSignal)) {
         throw error;
       }
-      const graderId = comparisonProviderId(assertion.provider ?? savedTest.options?.provider);
+      const graderId = comparisonProviderId(
+        selectGradingProvider(assertion) ?? selectGradingProvider(savedTest.options),
+      );
       // Provider errors can contain credentials or config source snippets, so saved results get
       // a generic reason. The run's log file records debug messages even without --verbose, so
       // the cause is logged only when debug output was asked for.

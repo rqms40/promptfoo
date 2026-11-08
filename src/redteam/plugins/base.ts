@@ -4,6 +4,7 @@ import logger from '../../logger';
 import { matchesLlmRubric } from '../../matchers/llmGrading';
 import { isMcpToolNameFilter } from '../../providers/mcp/util';
 import { loadOpenAiAgentsModule } from '../../providers/openai/agents-availability';
+import { selectGradingProvider } from '../../types/graderProvider';
 import { retryWithDeduplication, sampleArray } from '../../util/generation';
 import { maybeLoadToolsFromExternalFile } from '../../util/index';
 import invariant from '../../util/invariant';
@@ -575,7 +576,7 @@ export abstract class RedteamGraderBase {
         ? (cliState.config.defaultTest as TestCase)
         : undefined;
     const hasConfiguredGradingProvider = Boolean(
-      cliState.config?.redteam?.provider || defaultTest?.options?.provider,
+      cliState.config?.redteam?.provider || selectGradingProvider(defaultTest?.options),
     );
     const grading = {
       ...test.options,

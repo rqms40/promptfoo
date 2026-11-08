@@ -17,6 +17,7 @@ import logger from '../../logger';
 import { readPrompts } from '../../prompts/index';
 import { loadApiProviders, resolveProviderConfigs } from '../../providers/index';
 import telemetry from '../../telemetry';
+import { GRADER_PROVIDER_CONFLICT_MESSAGE } from '../../types/graderProvider';
 import {
   type CommandLineOptions,
   CommandLineOptionsSchema,
@@ -422,9 +423,12 @@ function normalizeLoadedConfig(
     : UnifiedConfigSchema;
   const validationResult = validationSchema.safeParse(ret);
   if (!validationResult.success) {
-    logger.warn(
-      `Invalid configuration file ${configPath}:\n${z.prettifyError(validationResult.error)}`,
-    );
+    const formatted = z.prettifyError(validationResult.error);
+    const message = `Invalid configuration file ${configPath}:\n${formatted}`;
+    if (formatted.includes(GRADER_PROVIDER_CONFLICT_MESSAGE)) {
+      throw new ConfigResolutionError(message);
+    }
+    logger.warn(message);
   }
 
   if (ret.targets) {
@@ -1289,15 +1293,20 @@ async function resolveLoadedConfig(
     throw new ConfigResolutionError(message);
   }
 
+  const defaultTestOptions = {
+    prefix: cmdObj.promptPrefix,
+    suffix: cmdObj.promptSuffix,
+    provider: cmdObj.grader,
+    ...parsedDefaultTest?.options,
+  };
+  if (cmdObj.grader) {
+    defaultTestOptions.provider = cmdObj.grader;
+    delete defaultTestOptions.graderProvider;
+  }
   const defaultTest: TestCase = {
     metadata: config.metadata,
     ...parsedDefaultTest,
-    options: {
-      prefix: cmdObj.promptPrefix,
-      suffix: cmdObj.promptSuffix,
-      provider: cmdObj.grader,
-      ...parsedDefaultTest?.options,
-    },
+    options: defaultTestOptions,
   };
 
   const testSuite: TestSuite = {

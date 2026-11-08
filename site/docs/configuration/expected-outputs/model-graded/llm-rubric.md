@@ -143,6 +143,8 @@ By default, `llm-rubric` uses `gpt-5` for grading. You can override this in seve
            // highlight-end
    ```
 
+`graderProvider` is an alias of `provider` in each of those places (`assertion.graderProvider`, `test.options.graderProvider`, and `defaultTest.options.graderProvider`). `--grader` overrides either name. Setting both names on the same assertion or the same `options` object is a validation error.
+
 ### Setting grader parameters (temperature, etc.)
 
 To pin `temperature`, `max_tokens`, or other provider-specific parameters on the grader, expand the `provider` shorthand into an object with `id` and `config`. This is the supported way to push grading toward reproducibility when swapping in a custom judge:
